@@ -1,0 +1,174 @@
+---
+title: "Exercise-04"
+format: html
+date: 2-16-26
+---
+
+
+```{r}
+##load data
+library(curl)
+
+
+word <- curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/collins-scrabble-words-2019.txt")
+
+words <- read.csv(word, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+head(words)
+
+f <- curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/google-10000-english-usa-no-swears.txt")
+
+engwords<- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+```
+
+You can add options to executable code like this 
+
+```{r}
+
+##step 1 and 2
+
+library(dplyr)
+library(tidyverse)
+
+install.packages("stringr")
+install.packages("cli")
+
+library(stringr)
+
+words5l<- engwords%>%
+  mutate(engwords, flw = nchar(words) == 5)%>% ##creating a new column where 5 letter words are true and everything else is false
+  filter(flw == "TRUE") ##filtering out all the words that aren't 5 letters long
+ 
+
+words5letters<- words%>%
+  mutate(words, flw = nchar(words) == 5)%>% ##creating a new column where 5 letter words are true and everything else is false
+  filter(flw == "TRUE")
+
+load_dictionary<- function(words5letters) {
+  valid_words <- curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/collins-scrabble-words-2019.txt")
+  valid_words_list <- read.csv(valid_words)
+  return(valid_words_list)
+}
+
+valid_list <- load_dictionary()
+
+str(valid_list)
+
+load_dictionary<- function(words5letters) {
+  valid_words <- curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/collins-scrabble-words-2019.txt")
+  valid_words_list <- read.csv(valid_words)
+  return(valid_words_list) ##this is wrong
+}
+
+load_dictionary <- function(filename) { #the argument is the file name to call. 
+  words <- read.csv(filename, header = TRUE, sep = ",", stringsAsFactors = FALSE) ##Them i am saying to run the function put the file name into the read.csv function.  
+  return(words)
+} ##the correct way to formulate a function
+
+valid_list <- load_dictionary(curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/collins-scrabble-words-2019.txt")) ##creating the vector valid_list using the function load_dictionary to call the data set I want
+
+solution_list <- load_dictionary( curl("https://raw.githubusercontent.com/difiore/ada-datasets/refs/heads/main/google-10000-english-usa-no-swears.txt")) #creating the solution list the same way as the valid list 
+
+str(solution_list)
+
+library(dplyr)
+
+
+solution_list1<-intersect(valid_list, solution_list) ##there are now 8,336 words in the updated solution list
+
+
+```
+
+```{r}
+
+#step 3 write a custom function called pick_solution() that 1) removes all words from solution_list that are not 5 letters in length, 2) randomly chooses a single word from those that remain and 3) splits that word into a vector of single-character elements. 
+
+#creating a function that will choose a random word from the solution list. 
+pick_solution<- function(x) {
+  fivelw <- filter(x, str_length(words) == 5) #specifying to filters the words in the list by length of 5 letters
+  sample_word <- sample(fivelw$words, 1) #pick a single word from the list of 5 letter words
+  split_word <- str_split_1(sample_word, "") #split that word into separate letters
+  return(split_word) #output the split five letter word. 
+}
+
+pick_solution(solution_list1)
+
+class(pick_solution(solution_list1))
+
+solution <- pick_solution(solution_list1) #assigning pick solution to the variable solution
+
+```
+
+
+
+```{r}
+
+##Step 4: create two more functions. The first should be called "play_wordle() and it should take three arguments: 1) the answer to the puzzle, 2) a list of valid guesses (the contents of your valid_list variable), and 3) a value for "number of guesses" which should be set to the original wordle game default of 6. 
+ 
+
+##creating a function to evaluate the guess submitted that will be used in the play wordle function
+ evaluate_guess <- function(guess, answer_sol) { #inputs are the guess and the solution
+    wordlength<- length(answer_sol) #need to define the length of the word so that the for loop knows how far to check
+    letterC <- rep("-", wordlength) ##the letterC variable places a "-" at each letter position which will later be replaced with  
+    
+    for(i in 1:wordlength) { 
+      if (guess[i] == answer_sol[i]) { ##if the letters are the same, then letterC returns a "*", if no match it returns a "-"
+        letterC[i] <- "*"
+        answer_sol[i] <- "-"
+      }
+      
+    }
+    ##another for loop, defining
+    for (i in 1:wordlength) {
+    if (letterC[i] != "*") { ##do not change if already defined as "*"
+      inword <- match(guess[i], answer_sol) ##
+      if (!is.na(inword)) { #if statement defining that if there is a match mark it with "+"
+        letterC[i] <- "+"
+        answer_sol[inword] <- "-" #keeps the same letter from being matched more than once
+        
+      }
+    }
+    }
+    letterC ##return the string of stars, plus and dash for the guess
+ }
+
+##creating a function where the player will input an answer and get feedback about correct answers 
+play_wordle <- function(solution, valid_list, num_guesses = 6) {
+  print(paste("you have", num_guesses, "chances to guress a 5 letter word")) #first telling them the rules of the game 
+  print(paste(LETTERS)) #and telling them the letters
+  guess_count <- 0 #starting on guess 0, this is important for the while loop
+  answer <- pick_solution(solution_list1) #using the pick solution function that was previously created and assigning it to the variable function
+  #answer_sol <- toupper(strsplit(answer, "")[[1]])
+  lettersleft<- LETTERS
+  
+  #creating a while loop that says to run the loop below while the guess count is below the the number of guesses
+ 
+  while(guess_count < num_guesses) {              
+    guess_count <- guess_count + 1 
+    guess <- toupper(readline(paste0("Enter guess ", guess_count, ":"))) #using readline so that the player can write in their guess and changing their input to upper case letters to match the letters 
+    guess_str <- strsplit(guess, "")[[1]] #splitting the players guess into separate characters 
+    letterC <- evaluate_guess(toupper(guess_str), toupper(answer)) #using our evaluate guess function to compare the guess to the answer
+    lettersleft<-setdiff(lettersleft, guess_str) #removing the letters that were guessed from the available letters list
+    print(paste(c("Letters left:", paste(lettersleft, collapse = " ")))) #printing the letters left in the console for the player to see 
+    print(paste(guess_str)) #show the player their guessed word
+    print(paste(letterC)) #show the player which letters are correct, included but in the wrong spot or not included
+    if (all(letterC == "*")) { #saying if all of the letters are correct, tell the player that they won
+      print("You Won!")
+    }
+    
+  }
+   cat("you lost! Answer was ", paste(answer, collapse = "")) ##if the player lost, tell them you lost, the answer was "answer" but the collapse puts the letters back together. 
+}
+
+play_wordle(solution)
+
+#huxtable a version that replicates the background and everything for wordle
+
+```
+
+
+```{r}
+
+```
+
